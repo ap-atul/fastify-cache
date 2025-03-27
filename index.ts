@@ -1,18 +1,17 @@
 import Fastify from 'fastify'
+import cachePlugin from './plugin'
+import { MyCacheService } from './service'
 
-const fastify = Fastify({
-  logger: true
-})
+const fastify = Fastify()
+fastify.register(cachePlugin(new MyCacheService()))
 
 fastify.get('/todo', function (request, reply) {
   reply.send({ hello: 'world' })
 })
 
-fastify.listen({ port: 3000 }, function (err, address) {
-  if (err) {
-    fastify.log.error(err)
-    process.exit(1)
-  } else {
-    console.log(`Server listening at ${address}`)
-  }
+fastify.get('/todo/cached', { config: { cache: { ttl: 100 } } }, function (request, reply) {
+  console.log('SENDING NORMAL RESPONSE')
+  reply.send({ hello: 'world from cache' })
 })
+
+fastify.listen({ port: 3000 }, () => console.log("server started"))
