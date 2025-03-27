@@ -9,9 +9,9 @@ import {
 import fp from 'fastify-plugin'
 import _ from 'lodash'
 
-interface CacheService {
+export interface CacheService {
   get(key: string): Promise<any | null>
-  set(key: string, value: any, options: { ttl: string }): Promise<void>
+  set(key: string, value: any, options: { ttl: number }): Promise<void>
 }
 
 const isCacheableRequest = (request: FastifyRequest) => {
@@ -46,6 +46,7 @@ const cacheOnRequestHook = (service: CacheService) => async (request: FastifyReq
   const cacheKey = request.url
   const cacheData = await service.get(cacheKey)
   if (_.isNil(cacheData)) {
+    reply.header('x-cache', 'miss')
     return
   }
   reply.header('x-cache', 'hit').status(200).send(cacheData)
@@ -57,6 +58,9 @@ const cacheOnSendHook =
       return payload
     }
     const cacheKey = request.url
+    const ttl = _.get(reply.request.routeOptions.config, 'cache.ttl', 600) // defaulting to 10mins
+    await service.set(cacheKey, payload, { ttl })
+    return payload
   }
 
 const plugin = (service: CacheService) => async (server: FastifyInstance, options: FastifyPluginOptions) => {
